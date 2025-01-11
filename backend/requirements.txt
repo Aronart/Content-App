@@ -1,0 +1,9 @@
+pydantic
+pydantic-settings
+sqlalchemy
+ffmpeg
+celery
+redis
+django-celery-beat
+fastapi
+uvicorn
