@@ -1,0 +1,8 @@
+export enum Platform {
+  YOUTUBE = 'YOUTUBE',
+  INSTAGRAM = 'INSTAGRAM',
+  TIKTOK = 'TIKTOK',
+  TWITTER = 'TWITTER',
+  FACEBOOK = 'FACEBOOK',
+  LINKEDIN = 'LINKEDIN'
+}

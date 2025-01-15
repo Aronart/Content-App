@@ -1,6 +1,8 @@
 from typing import Type, Dict
-from base import UploadAdapter
-from database.models import Platform
+from abc import ABC, abstractmethod
+from src.upload.base import UploadAdapter
+from src.database.models import Platform
+
 
 class UploadRegistry:
     _registry: Dict[Platform, Type[UploadAdapter]] = {}
@@ -10,6 +12,7 @@ class UploadRegistry:
         def wrapper(adapter_class: Type[UploadAdapter]):
             cls._registry[platform] = adapter_class
             return adapter_class
+
         return wrapper
 
     @classmethod

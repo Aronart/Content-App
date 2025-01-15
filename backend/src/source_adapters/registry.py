@@ -1,6 +1,8 @@
 from typing import Type, Dict
-from base import SourceAdapter
-from database.models import Platform
+from abc import ABC, abstractmethod
+from src.source_adapters.base import SourceAdapter
+from src.database.models import Platform
+
 
 class SourceRegistry:
     _registry: Dict[Platform, Type[SourceAdapter]] = {}
@@ -8,9 +10,11 @@ class SourceRegistry:
     @classmethod
     def register(cls, platform: Platform):
         """Decorator to register an adapter for a platform."""
+
         def wrapper(adapter_class: Type[SourceAdapter]):
             cls._registry[platform] = adapter_class
             return adapter_class
+
         return wrapper
 
     @classmethod
