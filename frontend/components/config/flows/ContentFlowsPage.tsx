@@ -11,20 +11,22 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/useToast';
 import {
-  ContentFlow,
+  getContentFlow,
   getContentFlows,
   createContentFlow,
   updateContentFlow,
   deleteContentFlow,
-  getSourceConfigs,
-  getEditingPipelines,
-  getDestinationAccounts,
 } from '@/services/configService';
+import type { ContentFlow } from '@/types';
+
+interface Column {
+  key: string;
+  header: string;
+  render?: (value: any) => React.ReactNode;
+}
 
 export function ContentFlowsPage() {
   const [flows, setFlows] = React.useState<ContentFlow[]>([]);
@@ -43,7 +45,7 @@ export function ContentFlowsPage() {
       toast({
         title: 'Error',
         description: 'Failed to fetch content flows',
-        variant: 'destructive',
+        status: 'error'
       });
     } finally {
       setIsLoading(false);
@@ -67,7 +69,7 @@ export function ContentFlowsPage() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to create content flow',
-        variant: 'destructive',
+        status: 'error'
       });
     }
   };
@@ -86,7 +88,7 @@ export function ContentFlowsPage() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to update content flow',
-        variant: 'destructive',
+        status: 'error'
       });
     }
   };
@@ -105,31 +107,13 @@ export function ContentFlowsPage() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to delete content flow',
-        variant: 'destructive',
+        status: 'error'
       });
     }
   };
 
-  const columns = [
+  const columns: Column[] = [
     { key: 'name', header: 'Name' },
-    {
-      key: 'is_active',
-      header: 'Status',
-      render: (value: boolean) => (
-        <Badge variant={value ? 'default' : 'secondary'}>
-          {value ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
-    },
-    {
-      key: 'require_approval',
-      header: 'Approval',
-      render: (value: boolean) => (
-        <Badge variant={value ? 'default' : 'secondary'}>
-          {value ? 'Required' : 'Not Required'}
-        </Badge>
-      ),
-    },
     {
       key: 'created_at',
       header: 'Created',

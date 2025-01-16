@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { PlusCircle } from 'lucide-react';
 import { DataTable } from '@/components/shared/DataTable';
@@ -10,15 +12,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/useToast';
 import {
-  EditingPipeline,
+  getEditingPipeline,
   getEditingPipelines,
   createEditingPipeline,
   updateEditingPipeline,
   deleteEditingPipeline,
 } from '@/services/configService';
+import type { EditingPipeline } from '@/types';
+
+interface Column {
+  key: string;
+  header: string;
+  render?: (value: any) => React.ReactNode;
+}
 
 export function EditingPipelinesPage() {
   const [pipelines, setPipelines] = React.useState<EditingPipeline[]>([]);
@@ -37,7 +45,7 @@ export function EditingPipelinesPage() {
       toast({
         title: 'Error',
         description: 'Failed to fetch editing pipelines',
-        variant: 'destructive',
+        status: 'error'
       });
     } finally {
       setIsLoading(false);
@@ -61,7 +69,7 @@ export function EditingPipelinesPage() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to create editing pipeline',
-        variant: 'destructive',
+        status: 'error'
       });
     }
   };
@@ -80,7 +88,7 @@ export function EditingPipelinesPage() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to update editing pipeline',
-        variant: 'destructive',
+        status: 'error'
       });
     }
   };
@@ -99,14 +107,13 @@ export function EditingPipelinesPage() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to delete editing pipeline',
-        variant: 'destructive',
+        status: 'error'
       });
     }
   };
 
-  const columns = [
+  const columns: Column[] = [
     { key: 'name', header: 'Name' },
-    { key: 'description', header: 'Description' },
     {
       key: 'created_at',
       header: 'Created',

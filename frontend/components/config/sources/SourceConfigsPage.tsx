@@ -12,15 +12,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/useToast';
 import {
-  SourceConfig,
+  getSourceConfig,
   getSourceConfigs,
   createSourceConfig,
   updateSourceConfig,
   deleteSourceConfig,
 } from '@/services/configService';
+import type { SourceConfig } from '@/types';
+
+interface Column {
+  key: string;
+  header: string;
+  render?: (value: any) => React.ReactNode;
+}
 
 export function SourceConfigsPage() {
   const [configs, setConfigs] = React.useState<SourceConfig[]>([]);
@@ -39,7 +45,7 @@ export function SourceConfigsPage() {
       toast({
         title: 'Error',
         description: 'Failed to fetch source configs',
-        variant: 'destructive',
+        status: 'error'
       });
     } finally {
       setIsLoading(false);
@@ -63,7 +69,7 @@ export function SourceConfigsPage() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to create source config',
-        variant: 'destructive',
+        status: 'error'
       });
     }
   };
@@ -82,7 +88,7 @@ export function SourceConfigsPage() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to update source config',
-        variant: 'destructive',
+        status: 'error'
       });
     }
   };
@@ -103,12 +109,12 @@ export function SourceConfigsPage() {
         description: error instanceof Error && error.message.includes('content flows') 
           ? 'Cannot delete source config that is being used by content flows. Please delete the associated content flows first.'
           : 'Failed to delete source config',
-        variant: 'destructive',
+        status: 'error'
       });
     }
   };
 
-  const columns = [
+  const columns: Column[] = [
     { key: 'name', header: 'Name' },
     { 
       key: 'platform', 

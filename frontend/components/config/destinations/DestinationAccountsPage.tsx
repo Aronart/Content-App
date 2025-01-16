@@ -11,17 +11,22 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/useToast';
 import {
-  DestinationAccount,
+  getDestinationAccount,
   getDestinationAccounts,
   createDestinationAccount,
   updateDestinationAccount,
   deleteDestinationAccount,
 } from '@/services/configService';
+import type { DestinationAccount } from '@/types';
+
+interface Column {
+  key: string;
+  header: string;
+  render?: (value: any) => React.ReactNode;
+}
 
 export function DestinationAccountsPage() {
   const [accounts, setAccounts] = React.useState<DestinationAccount[]>([]);
@@ -40,7 +45,7 @@ export function DestinationAccountsPage() {
       toast({
         title: 'Error',
         description: 'Failed to fetch destination accounts',
-        variant: 'destructive',
+        status: 'error'
       });
     } finally {
       setIsLoading(false);
@@ -64,7 +69,7 @@ export function DestinationAccountsPage() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to create destination account',
-        variant: 'destructive',
+        status: 'error'
       });
     }
   };
@@ -83,7 +88,7 @@ export function DestinationAccountsPage() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to update destination account',
-        variant: 'destructive',
+        status: 'error'
       });
     }
   };
@@ -102,14 +107,18 @@ export function DestinationAccountsPage() {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to delete destination account',
-        variant: 'destructive',
+        status: 'error'
       });
     }
   };
 
-  const columns = [
+  const columns: Column[] = [
     { key: 'name', header: 'Name' },
-    { key: 'platform', header: 'Platform' },
+    { 
+      key: 'platform', 
+      header: 'Platform',
+      render: (value: string) => value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : '',
+    },
     {
       key: 'created_at',
       header: 'Created',
