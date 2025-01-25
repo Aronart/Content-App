@@ -1,24 +1,50 @@
-import { ContentQueueItem } from '../types/queue';
+import { ContentQueueItemResponse } from '@/types/generated';
+import { API_BASE } from '@/config';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const API_PREFIX = '/api';
-
-export async function getQueueItems(): Promise<ContentQueueItem[]> {
-  console.log('Fetching queue items from:', `${API_BASE_URL}${API_PREFIX}/queues/items`);
-  const response = await fetch(`${API_BASE_URL}${API_PREFIX}/queues/items`);
+export async function getQueueItems(): Promise<ContentQueueItemResponse[]> {
+  const response = await fetch(`${API_BASE}/queues/items`);
+  
   if (!response.ok) {
-    console.error('Failed to fetch queue items:', response.status, response.statusText);
-    throw new Error('Failed to fetch queue items');
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to fetch queue items');
   }
+  
   return response.json();
 }
 
-export async function getQueueItem(id: number): Promise<ContentQueueItem> {
-  console.log('Fetching queue item from:', `${API_BASE_URL}${API_PREFIX}/queues/items/${id}`);
-  const response = await fetch(`${API_BASE_URL}${API_PREFIX}/queues/items/${id}`);
+export async function getQueueItem(id: number): Promise<ContentQueueItemResponse> {
+  const response = await fetch(`${API_BASE}/queues/items/${id}`);
+  
   if (!response.ok) {
-    console.error('Failed to fetch queue item:', response.status, response.statusText);
-    throw new Error('Failed to fetch queue item');
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to fetch queue item');
   }
+  
   return response.json();
+}
+
+export async function approveQueueItem(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/content/${id}/approve`, {
+    method: 'POST',
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to approve content');
+  }
+}
+
+export async function rejectQueueItem(id: number, reason: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/content/${id}/reject`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ reason }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to reject content');
+  }
 }

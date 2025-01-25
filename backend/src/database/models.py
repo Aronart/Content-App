@@ -9,40 +9,118 @@ from sqlalchemy import (
     Boolean,
     Enum as SQLEnum,
     Index,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from src.database.session import Base
 
 
-class Platform(Enum):
+class Platform(str, Enum):
+    """Supported platforms for content."""
     YOUTUBE = "youtube"
     REDDIT = "reddit"
     INSTAGRAM = "instagram"
     TIKTOK = "tiktok"
 
 
-class Transformation(Enum):
+class ContentStatus(str, Enum):
+    """Status of content in the processing pipeline."""
+    EDITING = "editing"
+    READY = "ready"
+    APPROVED = "approved"
+    POSTING = "posting"
+    COMPLETED = "completed"
+    EDITING_ERROR = "editing_error"
+    POSTING_ERROR = "posting_error"
+
+
+class SourceType(str, Enum):
+    """Type of content source to fetch from."""
+    CHANNEL = "channel"
+    PLAYLIST = "playlist"
+    VIDEO = "video"
+    SUBREDDIT = "subreddit"
+    USER = "user"
+    TAG = "tag"
+
+
+class SourceSelectionStrategy(str, Enum):
+    """Strategy for selecting which sources to use."""
+    STATIC = "static"  # Use explicitly provided sources
+    UNDERRATED = "underrated"  # Find underrated content
+
+
+class ContentSelectionStrategy(str, Enum):
+    """Strategy for selecting which content to process from a source."""
+    MOST_VIEWED = "most_viewed"
+    MOST_RECENT = "most_recent"
+    TRENDING = "trending"
+    RANDOM = "random"
+    NON_SELECTIVE = "non_selective"
+
+
+class ContentProcessingType(str, Enum):
+    """How to process the selected content."""
+    COMBINE = "combine"  # Combine multiple pieces of content
+    FULL = "full"  # Use the full content
+    MOST_REPLAYED = "most_replayed"  # Extract most replayed segments
+
+
+class Transformation(str, Enum):
+    """Types of content transformations."""
     COMBINE = "combine"
     TRIM = "trim"
     SUBTITLES = "subtitles"
-
-
-class ContentStatus(Enum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    RESIZE = "resize"
+    ADD_OVERLAY = "overlay"
+    ADJUST_SPEED = "speed"
+    ADD_TRANSITION = "transition"
 
 
 class GlobalConfig(Base):
     __tablename__ = "global_config"
     id = Column(Integer, primary_key=True)
     require_approval = Column(Boolean, default=True)
-    error_logging_level = Column(String)
-    config_data = Column(JSON)  # Stores platform-specific configurations
+    enable_automatic_posting = Column(Boolean, default=False)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    class Meta:
+        app_label = "contentapp"
+
+
+class SourceRateLimit(Base):
+    """Rate limits for content sourcing (e.g., API rate limits for fetching content)."""
+    __tablename__ = "source_rate_limits"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, unique=True)
+    current_action_count = Column(Integer, default=0)
+    max_daily_actions = Column(Integer)
+    last_action_at = Column(DateTime, nullable=True)
+    min_time_between_actions = Column(Integer)
+    blackout_periods = Column(JSON)  # Time periods when fetching is not allowed
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    source_configs = relationship("SourceConfig", back_populates="rate_limit")
+
+    class Meta:
+        app_label = "contentapp"
+
+
+class DestinationRateLimit(Base):
+    """Rate limits for content posting (e.g., platform limits for posting content)."""
+    __tablename__ = "destination_rate_limits"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, unique=True)
+    current_action_count = Column(Integer, default=0)
+    max_daily_actions = Column(Integer)
+    last_action_at = Column(DateTime, nullable=True)
+    min_time_between_actions = Column(Integer)
+    blackout_periods = Column(JSON)  # Time periods when posting is not allowed
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    destination_accounts = relationship("DestinationAccount", back_populates="rate_limit")
 
     class Meta:
         app_label = "contentapp"
@@ -51,13 +129,18 @@ class GlobalConfig(Base):
 class SourceConfig(Base):
     __tablename__ = "source_configs"
     id = Column(Integer, primary_key=True)
-    name = Column(String)
-    platform = Column(SQLEnum(Platform))
-    credentials = Column(JSON)
-    parameters = Column(JSON)  # Channel IDs, subreddits, etc.
-    schedule_settings = Column(JSON)
+    name = Column(String, nullable=False, unique=True)
+    platform = Column(SQLEnum(Platform), nullable=False)
+    credentials = Column(JSON, nullable=False, default={})
+    discovery_parameters = Column(JSON, nullable=False, default={})  # How to find content
+    sourcing_parameters = Column(JSON, nullable=False, default={})   # How to process found content
+    rate_limit_id = Column(Integer, ForeignKey("source_rate_limits.id"), index=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    rate_limit = relationship("SourceRateLimit", back_populates="source_configs")
+    content_flows = relationship("ContentFlow", back_populates="source_config")
 
     class Meta:
         app_label = "contentapp"
@@ -66,24 +149,19 @@ class SourceConfig(Base):
 class ContentFlow(Base):
     __tablename__ = "content_flows"
     id = Column(Integer, primary_key=True)
-    name = Column(String)
-    source_config_id = Column(Integer, ForeignKey("source_configs.id"), index=True)
-    editing_pipeline_id = Column(
-        Integer, ForeignKey("editing_pipelines.id"), index=True
-    )
-    destination_account_id = Column(
-        Integer, ForeignKey("destination_accounts.id"), index=True
-    )
-    quota_settings = Column(JSON)  # daily_limit, time_between_posts, blackout_periods
-    schedule_settings = Column(JSON)  # sourcing_schedule, posting_schedule
+    name = Column(String, nullable=False, unique=True)
+    source_config_id = Column(Integer, ForeignKey("source_configs.id"), nullable=False)
+    editing_pipeline_id = Column(Integer, ForeignKey("editing_pipelines.id"), nullable=False)
+    destination_account_id = Column(Integer, ForeignKey("destination_accounts.id"), nullable=False)
+    source_interval = Column(Integer)
+    post_schedule = Column(JSON)
     is_active = Column(Boolean, default=True)
     require_approval = Column(Boolean, default=True)
 
-    source_config = relationship("SourceConfig")
-    editing_pipeline = relationship("EditingPipeline")
-    destination_account = relationship("DestinationAccount")
-
-    # Add relationships to both queue and posted items
+    # Relationships
+    source_config = relationship("SourceConfig", back_populates="content_flows")
+    editing_pipeline = relationship("EditingPipeline", back_populates="content_flows")
+    destination_account = relationship("DestinationAccount", back_populates="content_flows")
     queue_items = relationship("ContentQueueItem", back_populates="content_flow")
     posted_items = relationship("PostedItem", back_populates="content_flow")
 
@@ -99,25 +177,28 @@ class ContentFlow(Base):
 class EditingPipeline(Base):
     __tablename__ = "editing_pipelines"
     id = Column(Integer, primary_key=True)
-    name = Column(String)
-    transformation_config = Column(JSON)
+    name = Column(String, nullable=False, unique=True)
+    transformations = Column(JSON, nullable=False, default=[])
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    content_flows = relationship("ContentFlow", back_populates="editing_pipeline")
 
     class Meta:
         app_label = "contentapp"
 
 
 class DestinationAccount(Base):
+    """Destination platform account for posting content."""
     __tablename__ = "destination_accounts"
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
     platform = Column(SQLEnum(Platform), nullable=False)
-    credentials = Column(JSON, nullable=False, default={})
-    parameters = Column(JSON, nullable=False, default={})
-    schedule_settings = Column(JSON, nullable=False, default={})
+    name = Column(String, nullable=False, unique=True)  # Display name for the account
+    credentials = Column(JSON, nullable=False)  # OAuth tokens, API keys, etc.
+    rate_limit_id = Column(Integer, ForeignKey("destination_rate_limits.id"))
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    rate_limit = relationship("DestinationRateLimit", back_populates="destination_accounts")
+    content_flows = relationship("ContentFlow", back_populates="destination_account")
 
     class Meta:
         app_label = "contentapp"
@@ -133,12 +214,11 @@ class ContentQueueItem(Base):
     content_flow_id = Column(Integer, ForeignKey("content_flows.id"), index=True)
     preview_path = Column(String, nullable=True)
     status = Column(SQLEnum(ContentStatus))
-    scheduled_time = Column(DateTime, nullable=True)
     error_log = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    # Add the relationship
+    # Relationships
     content_flow = relationship("ContentFlow", back_populates="queue_items")
 
     __table_args__ = (Index("ix_content_queue_status", "status"),)
@@ -147,52 +227,21 @@ class ContentQueueItem(Base):
         app_label = "contentapp"
 
 
-class ContentQuota(Base):
-    __tablename__ = "content_quotas"
-    id = Column(Integer, primary_key=True)
-    source_platform = Column(SQLEnum(Platform))
-    destination_account_id = Column(
-        Integer, ForeignKey("destination_accounts.id"), index=True
-    )
-    max_daily_posts = Column(Integer)  # Max number of posts per day
-    min_time_between_posts = Column(Integer)  # Minutes between posts
-    content_ratio = Column(JSON)  # e.g., {"youtube": 0.7, "reddit": 0.3}
-    blackout_periods = Column(JSON)  # e.g., [{"start": "23:00", "end": "07:00"}]
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-
-    __table_args__ = (Index("ix_content_quotas_is_active", "is_active"),)
-
-    class Meta:
-        app_label = "contentapp"
-
-
 class PostedItem(Base):
     __tablename__ = "posted_items"
     id = Column(Integer, primary_key=True)
-    original_queue_item_id = Column(Integer)
-    content_flow_id = Column(Integer, ForeignKey("content_flows.id"), index=True)
+    content_flow_id = Column(Integer, ForeignKey("content_flows.id"), nullable=False)
     source_platform = Column(SQLEnum(Platform))
-    source_url = Column(String)
-    source_data = Column(JSON)  # Keep original source data for reference
-    edited_content_path = Column(String)
-    destination_platform = Column(SQLEnum(Platform))
-    destination_account_id = Column(Integer, ForeignKey("destination_accounts.id"), index=True)
-    posted_at = Column(DateTime, default=func.now())
+    source_url = Column(String)  # Original source URL
+    source_data = Column(JSON)  # Original source data
+    edited_content_path = Column(String)  # Path to edited content
+    external_id = Column(String)  # Platform post ID
     performance_metrics = Column(JSON, nullable=True)  # likes, views, etc.
-    
-    # Relationships
-    content_flow = relationship("ContentFlow", back_populates="posted_items")
-    destination_account = relationship("DestinationAccount")
-
+    posted_at = Column(DateTime, default=func.now())
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-
-    __table_args__ = (
-        Index("ix_posted_items_content_flow_id", "content_flow_id"),
-        Index("ix_posted_items_posted_at", "posted_at"),
-    )
+    
+    content_flow = relationship("ContentFlow", back_populates="posted_items")
 
     class Meta:
         app_label = "contentapp"

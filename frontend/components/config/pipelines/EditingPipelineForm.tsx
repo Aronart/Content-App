@@ -2,11 +2,11 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { EditingPipeline } from '@/types';
+import { EditingPipelineCreate } from '@/types/generated';
 
 interface EditingPipelineFormProps {
-  initialData?: Partial<EditingPipeline>;
-  onSubmit: (data: Partial<EditingPipeline>) => Promise<void>;
+  initialData?: Partial<EditingPipelineCreate>;
+  onSubmit: (data: EditingPipelineCreate) => Promise<void>;
   isLoading?: boolean;
 }
 
@@ -15,22 +15,22 @@ export const EditingPipelineForm: React.FC<EditingPipelineFormProps> = ({
   onSubmit,
   isLoading = false,
 }) => {
-  const [formData, setFormData] = React.useState<Partial<EditingPipeline>>(initialData);
+  const [formData, setFormData] = React.useState<EditingPipelineCreate>({
+    name: initialData.name || '',
+    transformation_config: initialData.transformation_config || {}
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await onSubmit(formData);
-    } catch (error) {
-      console.error('Error submitting form:', error);
-    }
+    await onSubmit(formData);
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   return (
@@ -40,7 +40,7 @@ export const EditingPipelineForm: React.FC<EditingPipelineFormProps> = ({
         <Input
           id="name"
           name="name"
-          value={formData.name || ''}
+          value={formData.name}
           onChange={handleChange}
           required
         />
@@ -51,25 +51,27 @@ export const EditingPipelineForm: React.FC<EditingPipelineFormProps> = ({
         <textarea
           id="transformation_config"
           name="transformation_config"
-          value={
-            typeof formData.transformation_config === 'object'
-              ? JSON.stringify(formData.transformation_config, null, 2)
-              : formData.transformation_config || ''
-          }
-          onChange={handleChange}
-          className="flex min-h-[300px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-          placeholder="Enter transformation config as JSON"
+          value={JSON.stringify(formData.transformation_config, null, 2)}
+          onChange={(e) => {
+            try {
+              const parsed = JSON.parse(e.target.value);
+              setFormData((prev) => ({
+                ...prev,
+                transformation_config: parsed,
+              }));
+            } catch (error) {
+              // Allow invalid JSON while typing
+              console.warn('Invalid JSON:', error);
+            }
+          }}
+          className="w-full h-48 p-2 border rounded"
+          placeholder="Enter transformation config in JSON format"
         />
       </div>
 
-      <div className="flex justify-end space-x-2">
-        <Button
-          type="submit"
-          disabled={isLoading}
-        >
-          Save
-        </Button>
-      </div>
+      <Button type="submit" disabled={isLoading}>
+        {isLoading ? 'Saving...' : 'Save Pipeline'}
+      </Button>
     </form>
   );
 };

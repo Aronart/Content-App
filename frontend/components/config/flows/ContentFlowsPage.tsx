@@ -20,7 +20,7 @@ import {
   updateContentFlow,
   deleteContentFlow,
 } from '@/services/configService';
-import type { ContentFlow } from '@/types';
+import { ContentFlow, ContentFlowCreate } from '@/types/generated';
 
 interface Column {
   key: string;
@@ -42,6 +42,7 @@ export function ContentFlowsPage() {
       const data = await getContentFlows();
       setFlows(data);
     } catch (error) {
+      console.error('Error fetching flows:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch content flows',
@@ -56,79 +57,104 @@ export function ContentFlowsPage() {
     fetchFlows();
   }, []);
 
-  const handleCreate = async (data: any) => {
+  const handleCreate = async (data: ContentFlowCreate) => {
     try {
+      setIsLoading(true);
       await createContentFlow(data);
       await fetchFlows();
       setIsFormOpen(false);
       toast({
         title: 'Success',
         description: 'Content flow created successfully',
+        status: 'success'
       });
     } catch (error) {
+      console.error('Error creating flow:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create content flow',
+        description: 'Failed to create content flow',
         status: 'error'
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleEdit = async (data: any) => {
+  const handleUpdate = async (data: ContentFlowCreate) => {
     try {
-      if (!selectedFlow?.id) return;
+      setIsLoading(true);
+      if (!selectedFlow?.id) throw new Error('No flow selected');
       await updateContentFlow(selectedFlow.id, data);
       await fetchFlows();
       setIsFormOpen(false);
       toast({
         title: 'Success',
         description: 'Content flow updated successfully',
+        status: 'success'
       });
     } catch (error) {
+      console.error('Error updating flow:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update content flow',
+        description: 'Failed to update content flow',
         status: 'error'
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDelete = async () => {
     try {
-      if (!selectedFlow?.id) return;
+      setIsLoading(true);
+      if (!selectedFlow?.id) throw new Error('No flow selected');
       await deleteContentFlow(selectedFlow.id);
       await fetchFlows();
       setIsDeleteOpen(false);
+      setSelectedFlow(null);
       toast({
         title: 'Success',
         description: 'Content flow deleted successfully',
+        status: 'success'
       });
     } catch (error) {
+      console.error('Error deleting flow:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete content flow',
+        description: 'Failed to delete content flow',
         status: 'error'
       });
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleEdit = (flow: ContentFlow) => {
+    setSelectedFlow(flow);
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteClick = (flow: ContentFlow) => {
+    setSelectedFlow(flow);
+    setIsDeleteOpen(true);
   };
 
   const columns: Column[] = [
     { key: 'name', header: 'Name' },
-    {
-      key: 'created_at',
-      header: 'Created',
-      render: (value: string) => new Date(value).toLocaleDateString(),
-    },
+    { key: 'source_config_name', header: 'Source' },
+    { key: 'destination_account_name', header: 'Destination' },
   ];
 
   return (
-    <div className="container py-10">
+    <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Content Flows</h1>
-        <Button onClick={() => {
-          setSelectedFlow(null);
-          setIsFormOpen(true);
-        }}>
+        <h1 className="text-2xl font-bold">Content Flows</h1>
+        <Button
+          onClick={() => {
+            setSelectedFlow(null);
+            setIsFormOpen(true);
+          }}
+        >
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Flow
         </Button>
@@ -137,26 +163,20 @@ export function ContentFlowsPage() {
       <DataTable
         columns={columns}
         data={flows}
-        onEdit={(flow) => {
-          setSelectedFlow(flow);
-          setIsFormOpen(true);
-        }}
-        onDelete={(flow) => {
-          setSelectedFlow(flow);
-          setIsDeleteOpen(true);
-        }}
+        onEdit={handleEdit}
+        onDelete={handleDeleteClick}
       />
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {selectedFlow ? 'Edit Flow' : 'Create Flow'}
+              {selectedFlow ? 'Edit Content Flow' : 'Add Content Flow'}
             </DialogTitle>
           </DialogHeader>
           <ContentFlowForm
-            initialData={selectedFlow || {}}
-            onSubmit={selectedFlow ? handleEdit : handleCreate}
+            initialData={selectedFlow || undefined}
+            onSubmit={selectedFlow ? handleUpdate : handleCreate}
             isLoading={isLoading}
           />
         </DialogContent>
@@ -166,7 +186,7 @@ export function ContentFlowsPage() {
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDelete}
-        title="Delete Flow"
+        title="Delete Content Flow"
         message="Are you sure you want to delete this content flow? This action cannot be undone."
         isLoading={isLoading}
       />

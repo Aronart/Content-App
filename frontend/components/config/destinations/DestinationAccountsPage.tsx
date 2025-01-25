@@ -20,7 +20,7 @@ import {
   updateDestinationAccount,
   deleteDestinationAccount,
 } from '@/services/configService';
-import type { DestinationAccount } from '@/types';
+import { DestinationAccount, DestinationAccountCreate } from '@/types/generated';
 
 interface Column {
   key: string;
@@ -42,6 +42,7 @@ export function DestinationAccountsPage() {
       const data = await getDestinationAccounts();
       setAccounts(data);
     } catch (error) {
+      console.error('Error fetching accounts:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch destination accounts',
@@ -56,84 +57,103 @@ export function DestinationAccountsPage() {
     fetchAccounts();
   }, []);
 
-  const handleCreate = async (data: any) => {
+  const handleCreate = async (data: DestinationAccountCreate) => {
     try {
+      setIsLoading(true);
       await createDestinationAccount(data);
       await fetchAccounts();
       setIsFormOpen(false);
       toast({
         title: 'Success',
         description: 'Destination account created successfully',
+        status: 'success'
       });
     } catch (error) {
+      console.error('Error creating account:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create destination account',
+        description: 'Failed to create destination account',
         status: 'error'
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleEdit = async (data: any) => {
+  const handleUpdate = async (data: DestinationAccountCreate) => {
     try {
-      if (!selectedAccount?.id) return;
+      setIsLoading(true);
+      if (!selectedAccount?.id) throw new Error('No account selected');
       await updateDestinationAccount(selectedAccount.id, data);
       await fetchAccounts();
       setIsFormOpen(false);
       toast({
         title: 'Success',
         description: 'Destination account updated successfully',
+        status: 'success'
       });
     } catch (error) {
+      console.error('Error updating account:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update destination account',
+        description: 'Failed to update destination account',
         status: 'error'
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDelete = async () => {
     try {
-      if (!selectedAccount?.id) return;
+      setIsLoading(true);
+      if (!selectedAccount?.id) throw new Error('No account selected');
       await deleteDestinationAccount(selectedAccount.id);
       await fetchAccounts();
       setIsDeleteOpen(false);
+      setSelectedAccount(null);
       toast({
         title: 'Success',
         description: 'Destination account deleted successfully',
+        status: 'success'
       });
     } catch (error) {
+      console.error('Error deleting account:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete destination account',
+        description: 'Failed to delete destination account',
         status: 'error'
       });
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleEdit = (account: DestinationAccount) => {
+    setSelectedAccount(account);
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteClick = (account: DestinationAccount) => {
+    setSelectedAccount(account);
+    setIsDeleteOpen(true);
   };
 
   const columns: Column[] = [
     { key: 'name', header: 'Name' },
-    { 
-      key: 'platform', 
-      header: 'Platform',
-      render: (value: string) => value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : '',
-    },
-    {
-      key: 'created_at',
-      header: 'Created',
-      render: (value: string) => new Date(value).toLocaleDateString(),
-    },
+    { key: 'platform', header: 'Platform' },
   ];
 
   return (
-    <div className="container py-10">
+    <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Destination Accounts</h1>
-        <Button onClick={() => {
-          setSelectedAccount(null);
-          setIsFormOpen(true);
-        }}>
+        <h1 className="text-2xl font-bold">Destination Accounts</h1>
+        <Button
+          onClick={() => {
+            setSelectedAccount(null);
+            setIsFormOpen(true);
+          }}
+        >
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Account
         </Button>
@@ -142,26 +162,20 @@ export function DestinationAccountsPage() {
       <DataTable
         columns={columns}
         data={accounts}
-        onEdit={(account) => {
-          setSelectedAccount(account);
-          setIsFormOpen(true);
-        }}
-        onDelete={(account) => {
-          setSelectedAccount(account);
-          setIsDeleteOpen(true);
-        }}
+        onEdit={handleEdit}
+        onDelete={handleDeleteClick}
       />
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {selectedAccount ? 'Edit Account' : 'Create Account'}
+              {selectedAccount ? 'Edit Destination Account' : 'Add Destination Account'}
             </DialogTitle>
           </DialogHeader>
           <DestinationAccountForm
-            initialData={selectedAccount || {}}
-            onSubmit={selectedAccount ? handleEdit : handleCreate}
+            initialData={selectedAccount || undefined}
+            onSubmit={selectedAccount ? handleUpdate : handleCreate}
             isLoading={isLoading}
           />
         </DialogContent>
@@ -171,7 +185,7 @@ export function DestinationAccountsPage() {
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDelete}
-        title="Delete Account"
+        title="Delete Destination Account"
         message="Are you sure you want to delete this destination account? This action cannot be undone."
         isLoading={isLoading}
       />

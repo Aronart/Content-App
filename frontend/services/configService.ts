@@ -1,39 +1,36 @@
-import { Platform } from '@/types/platform';
-import { SourceConfig, EditingPipeline, DestinationAccount, ContentFlow } from '@/types';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+import { 
+  SourceConfig, 
+  SourceConfigCreate,
+  EditingPipeline, 
+  EditingPipelineCreate,
+  DestinationAccount, 
+  DestinationAccountCreate,
+  ContentFlow, 
+  ContentFlowCreate
+} from '@/types/generated';
+import { API_BASE } from '@/config';
 
 // Source Configs
 export async function getSourceConfigs(): Promise<SourceConfig[]> {
-  const response = await fetch(`${API_BASE_URL}/api/source-configs`);
+  const response = await fetch(`${API_BASE}/config/sources`);
   if (!response.ok) throw new Error('Failed to fetch source configs');
   return response.json();
 }
 
 export async function getSourceConfig(id: number): Promise<SourceConfig> {
-  const response = await fetch(`${API_BASE_URL}/api/source-configs/${id}`);
+  const response = await fetch(`${API_BASE}/config/sources/${id}`);
   if (!response.ok) throw new Error('Failed to fetch source config');
   return response.json();
 }
 
-export async function createSourceConfig(data: Partial<SourceConfig>): Promise<SourceConfig> {
-  // Ensure all required fields are present with correct types
-  const payload = {
-    name: data.name,
-    platform: (data.platform || '').toLowerCase(),
-    credentials: data.credentials || {},
-    parameters: data.parameters || {},
-    schedule_settings: data.schedule_settings || {},
-  };
-
-  const response = await fetch(`${API_BASE_URL}/api/source-configs`, {
+export async function createSourceConfig(data: SourceConfigCreate): Promise<SourceConfig> {
+  const response = await fetch(`${API_BASE}/config/sources`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(data),
   });
-  
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.detail || 'Failed to create source config');
@@ -41,24 +38,15 @@ export async function createSourceConfig(data: Partial<SourceConfig>): Promise<S
   return response.json();
 }
 
-export async function updateSourceConfig(id: number, data: Partial<SourceConfig>): Promise<SourceConfig> {
-  // Ensure all required fields are present with correct types
-  const payload = {
-    name: data.name,
-    platform: (data.platform || '').toLowerCase(),
-    credentials: data.credentials || {},
-    parameters: data.parameters || {},
-    schedule_settings: data.schedule_settings || {},
-  };
-
-  const response = await fetch(`${API_BASE_URL}/api/source-configs/${id}`, {
+export async function updateSourceConfig(id: number, data: SourceConfigCreate): Promise<SourceConfig> {
+  const response = await fetch(`${API_BASE}/config/sources/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(data),
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.detail || 'Failed to update source config');
@@ -67,123 +55,152 @@ export async function updateSourceConfig(id: number, data: Partial<SourceConfig>
 }
 
 export async function deleteSourceConfig(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/source-configs/${id}`, {
+  const response = await fetch(`${API_BASE}/config/sources/${id}`, {
     method: 'DELETE',
   });
-  
   if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.detail || 'Failed to delete source config');
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to delete source config');
   }
 }
 
 // Editing Pipelines
 export async function getEditingPipelines(): Promise<EditingPipeline[]> {
-  const response = await fetch(`${API_BASE_URL}/api/editing-pipelines`);
+  const response = await fetch(`${API_BASE}/config/pipelines`);
   if (!response.ok) throw new Error('Failed to fetch editing pipelines');
   return response.json();
 }
 
 export async function getEditingPipeline(id: number): Promise<EditingPipeline> {
-  const response = await fetch(`${API_BASE_URL}/api/editing-pipelines/${id}`);
+  const response = await fetch(`${API_BASE}/config/pipelines/${id}`);
   if (!response.ok) throw new Error('Failed to fetch editing pipeline');
   return response.json();
 }
 
-export async function createEditingPipeline(data: Omit<EditingPipeline, 'id' | 'created_at' | 'updated_at'>): Promise<EditingPipeline> {
-  const response = await fetch(`${API_BASE_URL}/api/editing-pipelines`, {
+export async function createEditingPipeline(data: EditingPipelineCreate): Promise<EditingPipeline> {
+  const response = await fetch(`${API_BASE}/config/pipelines`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Failed to create editing pipeline');
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to create editing pipeline');
+  }
   return response.json();
 }
 
-export async function updateEditingPipeline(id: number, data: Omit<EditingPipeline, 'id' | 'created_at' | 'updated_at'>): Promise<EditingPipeline> {
-  const response = await fetch(`${API_BASE_URL}/api/editing-pipelines/${id}`, {
+export async function updateEditingPipeline(id: number, data: EditingPipelineCreate): Promise<EditingPipeline> {
+  const response = await fetch(`${API_BASE}/config/pipelines/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Failed to update editing pipeline');
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to update editing pipeline');
+  }
   return response.json();
 }
 
 export async function deleteEditingPipeline(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/editing-pipelines/${id}`, {
+  const response = await fetch(`${API_BASE}/config/pipelines/${id}`, {
     method: 'DELETE',
   });
-  if (!response.ok) throw new Error('Failed to delete editing pipeline');
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to delete editing pipeline');
+  }
 }
 
 // Destination Accounts
 export async function getDestinationAccounts(): Promise<DestinationAccount[]> {
-  const response = await fetch(`${API_BASE_URL}/api/destination-accounts`);
+  const response = await fetch(`${API_BASE}/config/destinations`);
   if (!response.ok) throw new Error('Failed to fetch destination accounts');
   return response.json();
 }
 
 export async function getDestinationAccount(id: number): Promise<DestinationAccount> {
-  const response = await fetch(`${API_BASE_URL}/api/destination-accounts/${id}`);
+  const response = await fetch(`${API_BASE}/config/destinations/${id}`);
   if (!response.ok) throw new Error('Failed to fetch destination account');
   return response.json();
 }
 
-export async function createDestinationAccount(data: Omit<DestinationAccount, 'id' | 'created_at' | 'updated_at'>): Promise<DestinationAccount> {
-  const response = await fetch(`${API_BASE_URL}/api/destination-accounts`, {
+export async function createDestinationAccount(data: DestinationAccountCreate): Promise<DestinationAccount> {
+  const response = await fetch(`${API_BASE}/config/destinations`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Failed to create destination account');
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to create destination account');
+  }
   return response.json();
 }
 
-export async function updateDestinationAccount(id: number, data: Omit<DestinationAccount, 'id' | 'created_at' | 'updated_at'>): Promise<DestinationAccount> {
-  const response = await fetch(`${API_BASE_URL}/api/destination-accounts/${id}`, {
+export async function updateDestinationAccount(id: number, data: DestinationAccountCreate): Promise<DestinationAccount> {
+  const response = await fetch(`${API_BASE}/config/destinations/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Failed to update destination account');
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to update destination account');
+  }
   return response.json();
 }
 
 export async function deleteDestinationAccount(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/destination-accounts/${id}`, {
+  const response = await fetch(`${API_BASE}/config/destinations/${id}`, {
     method: 'DELETE',
   });
-  if (!response.ok) throw new Error('Failed to delete destination account');
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to delete destination account');
+  }
 }
 
 // Content Flows
 export async function getContentFlows(): Promise<ContentFlow[]> {
-  const response = await fetch(`${API_BASE_URL}/api/content-flows`);
+  const response = await fetch(`${API_BASE}/config/flows`);
   if (!response.ok) throw new Error('Failed to fetch content flows');
   return response.json();
 }
 
 export async function getContentFlow(id: number): Promise<ContentFlow> {
-  const response = await fetch(`${API_BASE_URL}/api/content-flows/${id}`);
+  const response = await fetch(`${API_BASE}/config/flows/${id}`);
   if (!response.ok) throw new Error('Failed to fetch content flow');
   return response.json();
 }
 
-export async function createContentFlow(data: Omit<ContentFlow, 'id' | 'created_at' | 'updated_at'>): Promise<ContentFlow> {
-  const response = await fetch(`${API_BASE_URL}/api/content-flows`, {
+export async function createContentFlow(data: ContentFlowCreate): Promise<ContentFlow> {
+  const response = await fetch(`${API_BASE}/config/flows`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error('Failed to create content flow');
   return response.json();
 }
 
-export async function updateContentFlow(id: number, data: Omit<ContentFlow, 'id' | 'created_at' | 'updated_at'>): Promise<ContentFlow> {
-  const response = await fetch(`${API_BASE_URL}/api/content-flows/${id}`, {
+export async function updateContentFlow(id: number, data: ContentFlowCreate): Promise<ContentFlow> {
+  const response = await fetch(`${API_BASE}/config/flows/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error('Failed to update content flow');
@@ -191,7 +208,7 @@ export async function updateContentFlow(id: number, data: Omit<ContentFlow, 'id'
 }
 
 export async function deleteContentFlow(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/content-flows/${id}`, {
+  const response = await fetch(`${API_BASE}/config/flows/${id}`, {
     method: 'DELETE',
   });
   if (!response.ok) throw new Error('Failed to delete content flow');

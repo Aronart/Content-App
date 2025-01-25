@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,11 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { DestinationAccount } from '@/types';
+import { DestinationAccountCreate, Platform } from '@/types/generated';
 
 interface DestinationAccountFormProps {
-  initialData?: Partial<DestinationAccount>;
-  onSubmit: (data: Partial<DestinationAccount>) => Promise<void>;
+  initialData?: Partial<DestinationAccountCreate>;
+  onSubmit: (data: DestinationAccountCreate) => Promise<void>;
   isLoading?: boolean;
 }
 
@@ -22,26 +24,37 @@ export const DestinationAccountForm: React.FC<DestinationAccountFormProps> = ({
   onSubmit,
   isLoading = false,
 }) => {
-  const [formData, setFormData] = React.useState<Partial<DestinationAccount>>(initialData);
+  const [formData, setFormData] = React.useState<DestinationAccountCreate>({
+    name: initialData.name || '',
+    platform: initialData.platform || Platform.YOUTUBE,
+    credentials: initialData.credentials || {},
+    parameters: initialData.parameters || {},
+    schedule_settings: initialData.schedule_settings || {}
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await onSubmit(formData);
-    } catch (error) {
-      console.error('Error submitting form:', error);
-    }
+    await onSubmit(formData);
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handlePlatformChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, platform: value }));
+    if (name === 'credentials' || name === 'parameters' || name === 'schedule_settings') {
+      try {
+        setFormData((prev) => ({
+          ...prev,
+          [name]: JSON.parse(value),
+        }));
+      } catch (error) {
+        // Allow invalid JSON while typing
+        console.warn('Invalid JSON:', error);
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   return (
@@ -51,7 +64,7 @@ export const DestinationAccountForm: React.FC<DestinationAccountFormProps> = ({
         <Input
           id="name"
           name="name"
-          value={formData.name || ''}
+          value={formData.name}
           onChange={handleChange}
           required
         />
@@ -61,77 +74,60 @@ export const DestinationAccountForm: React.FC<DestinationAccountFormProps> = ({
         <Label htmlFor="platform">Platform</Label>
         <Select
           value={formData.platform}
-          onValueChange={handlePlatformChange}
-          required
+          onValueChange={(value: Platform) => setFormData((prev) => ({ ...prev, platform: value }))}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select a platform" />
+            <SelectValue placeholder="Select platform" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="youtube">YouTube</SelectItem>
-            <SelectItem value="twitter">Twitter</SelectItem>
-            <SelectItem value="instagram">Instagram</SelectItem>
-            <SelectItem value="tiktok">TikTok</SelectItem>
+            {Object.values(Platform).map((platform) => (
+              <SelectItem key={platform} value={platform}>
+                {platform}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="credentials">Credentials</Label>
+        <Label htmlFor="credentials">Credentials (JSON)</Label>
         <textarea
           id="credentials"
           name="credentials"
-          value={
-            typeof formData.credentials === 'object'
-              ? JSON.stringify(formData.credentials, null, 2)
-              : formData.credentials || ''
-          }
+          value={JSON.stringify(formData.credentials, null, 2)}
           onChange={handleChange}
-          className="flex min-h-[200px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full h-32 p-2 border rounded"
           placeholder="Enter credentials in JSON format"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="parameters">Parameters</Label>
+        <Label htmlFor="parameters">Parameters (JSON)</Label>
         <textarea
           id="parameters"
           name="parameters"
-          value={
-            typeof formData.parameters === 'object'
-              ? JSON.stringify(formData.parameters, null, 2)
-              : formData.parameters || ''
-          }
+          value={JSON.stringify(formData.parameters, null, 2)}
           onChange={handleChange}
-          className="flex min-h-[200px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full h-32 p-2 border rounded"
           placeholder="Enter parameters in JSON format"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="schedule_settings">Schedule Settings</Label>
+        <Label htmlFor="schedule_settings">Schedule Settings (JSON)</Label>
         <textarea
           id="schedule_settings"
           name="schedule_settings"
-          value={
-            typeof formData.schedule_settings === 'object'
-              ? JSON.stringify(formData.schedule_settings, null, 2)
-              : formData.schedule_settings || ''
-          }
+          value={JSON.stringify(formData.schedule_settings, null, 2)}
           onChange={handleChange}
-          className="flex min-h-[200px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full h-32 p-2 border rounded"
           placeholder="Enter schedule settings in JSON format"
         />
       </div>
 
-      <div className="flex justify-end space-x-2">
-        <Button
-          type="submit"
-          disabled={isLoading}
-        >
-          {initialData.id ? 'Update' : 'Create'}
-        </Button>
-      </div>
+      <Button type="submit" disabled={isLoading}>
+        {isLoading ? 'Saving...' : 'Save Account'}
+      </Button>
     </form>
   );
 };

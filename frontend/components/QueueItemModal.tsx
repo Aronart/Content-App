@@ -1,12 +1,12 @@
-import { ContentQueueItem, ContentStatus } from '../types/queue';
+import { ContentQueueItemResponse, ContentStatus } from '@/types/generated';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
 interface QueueItemModalProps {
-  item: ContentQueueItem | null;
   isOpen: boolean;
   onClose: () => void;
+  item: ContentQueueItemResponse | null;
 }
 
 export default function QueueItemModal({ item, isOpen, onClose }: QueueItemModalProps) {
@@ -58,45 +58,59 @@ export default function QueueItemModal({ item, isOpen, onClose }: QueueItemModal
                       <h4 className="font-medium text-gray-700">Status</h4>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                         ${item.status === ContentStatus.COMPLETED ? 'bg-green-100 text-green-800' :
-                          item.status === ContentStatus.FAILED ? 'bg-red-100 text-red-800' :
-                          item.status === ContentStatus.PROCESSING ? 'bg-blue-100 text-blue-800' :
+                          item.status === ContentStatus.EDITING_ERROR || item.status === ContentStatus.POSTING_ERROR ? 'bg-red-100 text-red-800' :
+                          item.status === ContentStatus.EDITING || item.status === ContentStatus.POSTING ? 'bg-blue-100 text-blue-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
                         {item.status}
                       </span>
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-700">Platform</h4>
+                      <h4 className="font-medium text-gray-700">Source Platform</h4>
                       <p className="text-sm text-gray-600">{item.source_platform}</p>
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-700">Created At</h4>
-                      <p className="text-sm text-gray-600">
-                        {new Date(item.created_at).toLocaleString()}
-                      </p>
+                      <p className="text-sm text-gray-600">{new Date(item.created_at).toLocaleString()}</p>
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-700">Updated At</h4>
-                      <p className="text-sm text-gray-600">
-                        {new Date(item.updated_at).toLocaleString()}
-                      </p>
+                      <p className="text-sm text-gray-600">{new Date(item.updated_at).toLocaleString()}</p>
                     </div>
                   </div>
 
-                  <div>
-                    <h4 className="font-medium text-gray-700">Source URL</h4>
-                    <a
-                      href={item.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      {item.source_url}
-                    </a>
+                  {item.error_log && (
+                    <div className="mt-4">
+                      <h4 className="font-medium text-gray-700">Error Log</h4>
+                      <pre className="mt-1 text-sm text-red-600 whitespace-pre-wrap bg-red-50 rounded-md p-4">
+                        {JSON.stringify(item.error_log, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+
+                  <div className="mt-4">
+                    <h4 className="font-medium text-gray-700">Source Data</h4>
+                    <pre className="mt-1 text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 rounded-md p-4">
+                      {JSON.stringify(item.source_data, null, 2)}
+                    </pre>
                   </div>
 
+                  {item.source_url && (
+                    <div className="mt-4">
+                      <h4 className="font-medium text-gray-700">Source URL</h4>
+                      <a 
+                        href={item.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        {item.source_url}
+                      </a>
+                    </div>
+                  )}
+
                   {item.preview_path && (
-                    <div>
+                    <div className="mt-4">
                       <h4 className="font-medium text-gray-700">Preview</h4>
                       <img
                         src={item.preview_path}
@@ -105,22 +119,6 @@ export default function QueueItemModal({ item, isOpen, onClose }: QueueItemModal
                       />
                     </div>
                   )}
-
-                  {item.error_log && (
-                    <div>
-                      <h4 className="font-medium text-gray-700">Error Log</h4>
-                      <pre className="mt-2 p-2 bg-red-50 rounded text-sm text-red-800 overflow-auto">
-                        {JSON.stringify(item.error_log, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-
-                  <div>
-                    <h4 className="font-medium text-gray-700">Source Data</h4>
-                    <pre className="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-600 overflow-auto">
-                      {JSON.stringify(item.source_data, null, 2)}
-                    </pre>
-                  </div>
                 </div>
               </Dialog.Panel>
             </Transition.Child>

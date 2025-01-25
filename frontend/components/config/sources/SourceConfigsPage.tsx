@@ -20,7 +20,7 @@ import {
   updateSourceConfig,
   deleteSourceConfig,
 } from '@/services/configService';
-import type { SourceConfig } from '@/types';
+import { SourceConfig, SourceConfigCreate } from '@/types/generated';
 
 interface Column {
   key: string;
@@ -42,9 +42,10 @@ export function SourceConfigsPage() {
       const data = await getSourceConfigs();
       setConfigs(data);
     } catch (error) {
+      console.error('Error fetching configs:', error);
       toast({
         title: 'Error',
-        description: 'Failed to fetch source configs',
+        description: 'Failed to fetch source configurations',
         status: 'error'
       });
     } finally {
@@ -56,86 +57,103 @@ export function SourceConfigsPage() {
     fetchConfigs();
   }, []);
 
-  const handleCreate = async (data: any) => {
+  const handleCreate = async (data: SourceConfigCreate) => {
     try {
+      setIsLoading(true);
       await createSourceConfig(data);
       await fetchConfigs();
       setIsFormOpen(false);
       toast({
         title: 'Success',
-        description: 'Source config created successfully',
+        description: 'Source configuration created successfully',
+        status: 'success'
       });
     } catch (error) {
+      console.error('Error creating config:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create source config',
+        description: 'Failed to create source configuration',
         status: 'error'
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleEdit = async (data: any) => {
+  const handleUpdate = async (data: SourceConfigCreate) => {
     try {
-      if (!selectedConfig?.id) return;
+      setIsLoading(true);
+      if (!selectedConfig?.id) throw new Error('No config selected');
       await updateSourceConfig(selectedConfig.id, data);
       await fetchConfigs();
       setIsFormOpen(false);
       toast({
         title: 'Success',
-        description: 'Source config updated successfully',
+        description: 'Source configuration updated successfully',
+        status: 'success'
       });
     } catch (error) {
+      console.error('Error updating config:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update source config',
+        description: 'Failed to update source configuration',
         status: 'error'
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDelete = async () => {
     try {
-      if (!selectedConfig?.id) return;
+      setIsLoading(true);
+      if (!selectedConfig?.id) throw new Error('No config selected');
       await deleteSourceConfig(selectedConfig.id);
       await fetchConfigs();
       setIsDeleteOpen(false);
+      setSelectedConfig(null);
       toast({
         title: 'Success',
-        description: 'Source config deleted successfully',
+        description: 'Source configuration deleted successfully',
+        status: 'success'
       });
     } catch (error) {
+      console.error('Error deleting config:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error && error.message.includes('content flows') 
-          ? 'Cannot delete source config that is being used by content flows. Please delete the associated content flows first.'
-          : 'Failed to delete source config',
+        description: 'Failed to delete source configuration',
         status: 'error'
       });
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleEdit = (config: SourceConfig) => {
+    setSelectedConfig(config);
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteClick = (config: SourceConfig) => {
+    setSelectedConfig(config);
+    setIsDeleteOpen(true);
   };
 
   const columns: Column[] = [
     { key: 'name', header: 'Name' },
-    { 
-      key: 'platform', 
-      header: 'Type',
-      render: (value: string) => value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : '',
-    },
-    {
-      key: 'created_at',
-      header: 'Created',
-      render: (value: string) => new Date(value).toLocaleDateString(),
-    },
+    { key: 'platform', header: 'Platform' },
   ];
 
   return (
-    <div className="container py-10">
+    <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Source Configurations</h1>
-        <Button onClick={() => {
-          setSelectedConfig(null);
-          setIsFormOpen(true);
-        }}>
+        <h1 className="text-2xl font-bold">Source Configurations</h1>
+        <Button
+          onClick={() => {
+            setSelectedConfig(null);
+            setIsFormOpen(true);
+          }}
+        >
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Source
         </Button>
@@ -144,26 +162,20 @@ export function SourceConfigsPage() {
       <DataTable
         columns={columns}
         data={configs}
-        onEdit={(config) => {
-          setSelectedConfig(config);
-          setIsFormOpen(true);
-        }}
-        onDelete={(config) => {
-          setSelectedConfig(config);
-          setIsDeleteOpen(true);
-        }}
+        onEdit={handleEdit}
+        onDelete={handleDeleteClick}
       />
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {selectedConfig ? 'Edit Source' : 'Create Source'}
+              {selectedConfig ? 'Edit Source Configuration' : 'Add Source Configuration'}
             </DialogTitle>
           </DialogHeader>
           <SourceConfigForm
-            initialData={selectedConfig || {}}
-            onSubmit={selectedConfig ? handleEdit : handleCreate}
+            initialData={selectedConfig || undefined}
+            onSubmit={selectedConfig ? handleUpdate : handleCreate}
             isLoading={isLoading}
           />
         </DialogContent>
@@ -173,7 +185,7 @@ export function SourceConfigsPage() {
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDelete}
-        title="Delete Source"
+        title="Delete Source Configuration"
         message="Are you sure you want to delete this source configuration? This action cannot be undone."
         isLoading={isLoading}
       />
